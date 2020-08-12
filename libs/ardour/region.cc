@@ -170,7 +170,6 @@ Region::register_properties ()
 	add_property (_start);
 	add_property (_length);
 	add_property (_position);
-	add_property (_beat);
 	add_property (_sync_position);
 	add_property (_ancestral_start);
 	add_property (_ancestral_length);
@@ -187,12 +186,10 @@ Region::register_properties ()
 	, _left_of_split (Properties::left_of_split, false) \
 	, _right_of_split (Properties::right_of_split, false) \
 	, _valid_transients (Properties::valid_transients, false) \
-	, _start (Properties::start, timecnt_t (s, _type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t (superclock_t (0)))) \
-	, _length (Properties::length, timecnt_t (l,timepos_t (s))) \
-	, _position (Properties::position, _type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t (superclock_t (0))) \
-	, _beat (Properties::beat, 0.0) \
-	, _sync_position (Properties::sync_position, timecnt_t (s, _type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t (superclock_t (0)))) \
-	, _quarter_note (0.0) \
+	, _start (Properties::start, timecnt_t (s, _type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t::from_superclock (0))) \
+	, _length (Properties::length, timecnt_t (l, timepos_t (s))) \
+	, _position (Properties::position, _type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t::from_superclock (0)) \
+	, _sync_position (Properties::sync_position, timecnt_t (s, _type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t::from_superclock (0))) \
 	, _transient_user_start (0) \
 	, _transient_analysis_start (0) \
 	, _transient_analysis_end (0) \
@@ -207,7 +204,7 @@ Region::register_properties ()
 	, _external (Properties::external, false) \
 	, _hidden (Properties::hidden, false) \
 	, _position_locked (Properties::position_locked, false) \
-	, _ancestral_start (Properties::ancestral_start, timecnt_t (s, _type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t (superclock_t (0)))) \
+	, _ancestral_start (Properties::ancestral_start, timecnt_t (s, _type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t::from_superclock (0))) \
 	, _ancestral_length (Properties::ancestral_length, (l)) \
 	, _stretch (Properties::stretch, 1.0) \
 	, _shift (Properties::shift, 1.0) \
@@ -224,9 +221,7 @@ Region::register_properties ()
 	, _start(Properties::start, other->_start) \
 	, _length(Properties::length, other->_length) \
 	, _position(Properties::position, other->_position) \
-	, _beat (Properties::beat, other->_beat) \
 	, _sync_position(Properties::sync_position, other->_sync_position) \
-	, _quarter_note (other->_quarter_note) \
 	, _user_transients (other->_user_transients) \
 	, _transient_user_start (other->_transient_user_start) \
 	, _transients (other->_transients) \
@@ -253,12 +248,12 @@ Region::register_properties ()
 	, _contents (Properties::contents, other->_contents)
 
 /* derived-from-derived constructor (no sources in constructor) */
-Region::Region (Session& s, timepos_t const & start, timecnt_t const & length, const string& name, DataType type)
+Region::Region (Session& s, timecnt_t const & start, timecnt_t const & length, const string& name, DataType type)
 	: SessionObject(s, name)
 	, _type(type)
-	, REGION_DEFAULT_STATE(start,length)
+        , REGION_DEFAULT_STATE(start,length)
 	, _last_length (length)
-	, _last_position (_type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t (superclock_t (0)))
+	, _last_position (_type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t::from_superclock (0))
 	, _first_edit (EditChangesNothing)
 	, _layer (0)
 {
@@ -271,10 +266,10 @@ Region::Region (Session& s, timepos_t const & start, timecnt_t const & length, c
 Region::Region (const SourceList& srcs)
 	: SessionObject(srcs.front()->session(), "toBeRenamed")
 	, _type (srcs.front()->type())
-	, REGION_DEFAULT_STATE(_type == DataType::MIDI ? timecnt_t (Temporal::Beats()) : timecnt_t (superclock_t(0)),
-	                       _type == DataType::MIDI ? timecnt_t (Temporal::Beats()) : timecnt_t (superclock_t (0)))
-	, _last_length (_type == DataType::MIDI ? timecnt_t (Temporal::Beats()) : timecnt_t (superclock_t (0)))
-	, _last_position (_type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t (superclock_t (0)))
+	, REGION_DEFAULT_STATE(_type == DataType::MIDI ? timecnt_t (Temporal::Beats()) : timecnt_t::from_superclock (0),
+	                       _type == DataType::MIDI ? timecnt_t (Temporal::Beats()) : timecnt_t::from_superclock (0))
+	, _last_length (_type == DataType::MIDI ? timecnt_t (Temporal::Beats()) : timecnt_t::from_superclock (0))
+	, _last_position (_type == DataType::MIDI ? timepos_t (Temporal::Beats()) : timepos_t::from_superclock (0))
 	, _first_edit (EditChangesNothing)
 	, _layer (0)
 {
@@ -315,8 +310,6 @@ Region::Region (boost::shared_ptr<const Region> other)
 	_first_edit = other->_first_edit;
 
 	_start = other->_start;
-	_beat = other->_beat;
-	_quarter_note = other->_quarter_note;
 
 	/* sync pos is relative to start of file. our start-in-file is now zero,
 	 * so set our sync position to whatever the the difference between
@@ -1343,23 +1336,6 @@ Region::_set_state (const XMLNode& node, int /*version*/, PropertyChange& what_c
 
 	set_id (node);
 
-	if (_position_lock_style == MusicTime) {
-		std::string bbt_str;
-		if (node.get_property ("bbt-position", bbt_str)) {
-			if (sscanf (bbt_str.c_str(), "%d|%d|%d",
-				    &bbt_time.bars,
-				    &bbt_time.beats,
-				    &bbt_time.ticks) != 3) {
-				_position_lock_style = AudioTime;
-				_beat = _session.tempo_map().beat_at_sample (position_sample());
-			} else {
-				_beat = _session.tempo_map().beat_at_bbt (bbt_time);
-			}
-			/* no position property change for legacy Property, so we do this here */
-			_quarter_note = _session.tempo_map().quarter_note_at_beat (_beat);
-		}
-	}
-
 	/* fix problems with old sessions corrupted by impossible
 	   values for _stretch or _shift
 	*/
@@ -1916,7 +1892,6 @@ Region::is_compound () const
 void
 Region::post_set (const PropertyChange& pc)
 {
-	_quarter_note = _session.tempo_map().quarter_note_at_beat (_beat);
 }
 
 void
@@ -1929,7 +1904,7 @@ timepos_t
 Region::earliest_possible_position () const
 {
 	if (nt_start() > timecnt_t (_position, timepos_t())) {
-		return 0;
+		return timepos_t::from_superclock (0);
 	} else {
 		return source_position();
 	}
