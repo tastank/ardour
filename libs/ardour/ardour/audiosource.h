@@ -41,20 +41,17 @@
 
 namespace ARDOUR {
 
-class LIBARDOUR_API AudioSource : virtual public Source,
-		public ARDOUR::Readable
+class LIBARDOUR_API AudioSource : virtual public Source, public ARDOUR::AudioReadable
 {
   public:
 	AudioSource (Session&, const std::string& name);
 	AudioSource (Session&, const XMLNode&);
 	virtual ~AudioSource ();
 
-	samplecnt_t readable_length() const { return _length; }
+	samplecnt_t readable_length_samples() const { return _length.samples(); }
 	virtual uint32_t n_channels()      const { return 1; }
 
-	virtual bool       empty() const;
-	samplecnt_t length (samplepos_t pos) const;
-	void       update_length (samplecnt_t cnt);
+	void       update_length (timecnt_t const & cnt);
 
 	virtual samplecnt_t available_peaks (double zoom) const;
 
@@ -122,7 +119,6 @@ class LIBARDOUR_API AudioSource : virtual public Source,
 	static void ensure_buffers_for_level (uint32_t, samplecnt_t);
 	static void ensure_buffers_for_level_locked (uint32_t, samplecnt_t);
 
-	samplecnt_t           _length;
 	std::string         _peakpath;
 
 	int initialize_peakfile (const std::string& path, const bool in_session = false);

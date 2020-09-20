@@ -45,13 +45,13 @@ using namespace ARDOUR;
 using namespace PBD;
 
 AudioPlaylistSource::AudioPlaylistSource (Session& s, const ID& orig, const std::string& name, boost::shared_ptr<AudioPlaylist> p,
-					  uint32_t chn, sampleoffset_t begin, samplecnt_t len, Source::Flag flags)
+                                          uint32_t chn, timepos_t const & begin, timepos_t const & len, Source::Flag flags)
 	: Source (s, DataType::AUDIO, name)
 	, PlaylistSource (s, orig, name, p, DataType::AUDIO, begin, len, flags)
 	, AudioSource (s, name)
 	, _playlist_channel (chn)
 {
-	AudioSource::_length = len;
+	AudioSource::_length = timecnt_t (len);
 	ensure_buffers_for_level (_level, _session.sample_rate());
 }
 
@@ -71,7 +71,7 @@ AudioPlaylistSource::AudioPlaylistSource (Session& s, const XMLNode& node)
 		throw failed_constructor ();
 	}
 
-	AudioSource::_length = _playlist_length;
+	_length = timecnt_t (_playlist_length);
 }
 
 AudioPlaylistSource::~AudioPlaylistSource ()
@@ -109,9 +109,9 @@ AudioPlaylistSource::set_state (const XMLNode& node, int version, bool with_desc
 		}
 	}
 
-	pair<samplepos_t,samplepos_t> extent = _playlist->get_extent();
+	pair<timepos_t,timepos_t> extent = _playlist->get_extent();
 
-	AudioSource::_length = extent.second - extent.first;
+	AudioSource::_length = extent.first.distance (extent.second);
 
 	if (!node.get_property (X_("channel"), _playlist_channel)) {
 		throw failed_constructor ();
@@ -135,8 +135,8 @@ AudioPlaylistSource::read_unlocked (Sample* dst, samplepos_t start, samplecnt_t 
 	 * is not supposed be part of our data.
 	 */
 
-	if (cnt > _playlist_length - start) {
-		to_read = _playlist_length - start;
+	if (cnt > _playlist_length.samples() - start) {
+		to_read = _playlist_length.samples() - start;
 		to_zero = cnt - to_read;
 	} else {
 		to_read = cnt;
@@ -154,7 +154,7 @@ AudioPlaylistSource::read_unlocked (Sample* dst, samplepos_t start, samplecnt_t 
 		gbuf = _gain_buffers[_level-1];
 	}
 
-	boost::dynamic_pointer_cast<AudioPlaylist>(_playlist)->read (dst, sbuf.get(), gbuf.get(), start+_playlist_offset, to_read, _playlist_channel);
+	boost::dynamic_pointer_cast<AudioPlaylist>(_playlist)->read (dst, sbuf.get(), gbuf.get(), timepos_t (start)+_playlist_offset, timecnt_t (to_read), _playlist_channel);
 
 	if (to_zero) {
 		memset (dst+to_read, 0, sizeof (Sample) * to_zero);
