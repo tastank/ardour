@@ -970,7 +970,7 @@ void
 ExportFormatDialog::update_clock (AudioClock & clock, ARDOUR::AnyTime const & time)
 {
 	// TODO position
-	clock.set (_session->convert_to_samples (time), true);
+	clock.set (timepos_t (_session->convert_to_samples (time)), true);
 
 	AudioClock::Mode mode(AudioClock::Timecode);
 
@@ -999,7 +999,7 @@ ExportFormatDialog::update_time (AnyTime & time, AudioClock const & clock)
 		return;
 	}
 
-	samplecnt_t samples = clock.current_duration();
+	samplecnt_t samples = clock.current_duration().samples();
 
 	switch (clock.mode()) {
 	  case AudioClock::Timecode:
