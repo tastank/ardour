@@ -633,6 +633,9 @@ PortManager::reestablish_ports ()
 		return -1;
 	}
 
+	_port_peak_meters.clear();
+	run_input_meters (0, 0);
+
 	return 0;
 }
 
@@ -821,6 +824,8 @@ PortManager::cycle_start (pframes_t nframes, Session* s)
 			}
 		}
 	}
+
+	run_input_meters (nframes, s ? s->nominal_sample_rate () : 0 );
 }
 
 void
@@ -1403,3 +1408,63 @@ PortManager::check_for_ambiguous_latency (bool log) const
 	}
 	return rv;
 }
+
+void
+PortManager::reset_input_meters ()
+{
+	g_atomic_int_set (&_reset_meters, 1);
+}
+
+void
+PortManager::run_input_meters (pframes_t n_samples, samplecnt_t rate)
+{
+	const bool reset = g_atomic_int_compare_and_exchange (&_reset_meters, 1, 0);
+
+	float falloff = 1.0;
+	if (n_samples > 0 && rate > 0) {
+		// TODO: cache
+#ifdef _GNU_SOURCE
+		falloff = exp10f (-0.05f * Config->get_meter_falloff () * n_samples / rate);
+#else
+		falloff = powf (10.f, -0.05f * Config->get_meter_falloff () * n_samples / rate);
+#endif
+	}
+
+	/* calculate peak of all physical inputs (readable ports) */
+	std::vector<std::string> port_names;
+	get_physical_inputs (DataType::AUDIO, port_names);
+	for (std::vector<std::string>::iterator p = port_names.begin(); p != port_names.end(); ++p) {
+		if (port_is_mine (*p)) {
+			continue;
+		}
+		PortEngine::PortHandle ph = _backend->get_port_by_name (*p);
+		if (!ph) {
+			continue;
+		}
+		if (n_samples == 0) {
+			_port_peak_meters[*p] = DPM ();
+			continue;
+		}
+		if (reset) {
+			_port_peak_meters[*p].peak = 0;
+			_port_peak_meters[*p].level = 0;
+		}
+
+		Sample* buf = (Sample*) _backend->get_buffer (ph, n_samples);
+		if (!buf) {
+			continue;
+		}
+
+		_port_peak_meters[*p].level = compute_peak (buf, n_samples, reset ? 0 : _port_peak_meters[*p].level);
+		_port_peak_meters[*p].level = std::min (_port_peak_meters[*p].level, 100.f); // cut off at +40dBFS for falloff.
+		_port_peak_meters[*p].peak  = std::max (_port_peak_meters[*p].peak, _port_peak_meters[*p].level);
+
+		/* falloff */
+		if (_port_peak_meters[*p].level > 1e-10) {
+			_port_peak_meters[*p].level *= falloff;
+		} else {
+			_port_peak_meters[*p].level = 0;
+		}
+	}
+}
+

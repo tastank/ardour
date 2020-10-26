@@ -45,8 +45,18 @@ class Session;
 class LIBARDOUR_API PortManager
 {
 public:
+	struct DPM {
+		DPM () {
+			level = 0;
+			peak = 0;
+		}
+		Sample level;
+		Sample peak;
+	};
+
 	typedef std::map<std::string, boost::shared_ptr<Port> > Ports;
 	typedef std::list<boost::shared_ptr<Port> >             PortList;
+	typedef std::map<std::string, DPM>                      PortDPM;
 
 	PortManager ();
 	virtual ~PortManager () {}
@@ -199,6 +209,9 @@ public:
 	 */
 	PBD::Signal5<void, boost::weak_ptr<Port>, std::string, boost::weak_ptr<Port>, std::string, bool> PortConnectedOrDisconnected;
 
+	void reset_input_meters ();
+	PortDPM const& input_meters () { return _port_peak_meters; }
+
 protected:
 	boost::shared_ptr<AudioBackend> _backend;
 
@@ -245,6 +258,12 @@ protected:
 	void filter_midi_ports (std::vector<std::string>&, MidiPortFlags, MidiPortFlags);
 
 	void set_port_buffer_sizes (pframes_t);
+
+private:
+	void run_input_meters (pframes_t, samplecnt_t);
+
+	PortDPM       _port_peak_meters;
+	volatile gint _reset_meters;
 };
 
 } // namespace ARDOUR
