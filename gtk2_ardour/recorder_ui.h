@@ -19,17 +19,29 @@
 #ifndef __gtk_ardour_recorder_ui_h__
 #define __gtk_ardour_recorder_ui_h__
 
+#include <boost/shared_ptr.hpp>
+
 #include <gtkmm/box.h>
+#include <gtkmm/scrolledwindow.h>
 
 #include "ardour/session_handle.h"
+
 #include "gtkmm2ext/bindings.h"
+
+#include "widgets/ardour_button.h"
 #include "widgets/tabbable.h"
+
+namespace ArdourWidgets {
+	class FastMeter;
+}
 
 class RecorderUI : public ArdourWidgets::Tabbable, public ARDOUR::SessionHandlePtr, public PBD::ScopedConnectionList
 {
 public:
 	RecorderUI ();
+	~RecorderUI ();
 	void set_session (ARDOUR::Session*);
+	void cleanup ();
 
 	Gtk::Window* use_own_window (bool and_fill_it);
 
@@ -40,9 +52,31 @@ private:
 	void session_going_away ();
 	void parameter_changed (std::string const&);
 
-	Gtkmm2ext::Bindings* bindings;
+	void start_updating ();
+	void stop_updating ();
+	void update_meters ();
 
-	Gtk::VBox _content;
+	Gtkmm2ext::Bindings*       bindings;
+	Gtk::VBox                 _content;
+	Gtk::HBox                 _rulers;
+	Gtk::HBox                 _meterarea;
+	Gtk::ScrolledWindow       _scroller;
+	sigc::connection          _fast_screen_update_connection;
+	PBD::ScopedConnectionList _engine_connections;
+
+	class InputMeter : public Gtk::VBox
+	{
+		public:
+			InputMeter (std::string const&);
+			~InputMeter ();
+			void update (float, float);
+
+		private:
+			ArdourWidgets::FastMeter*   _meter;
+			ArdourWidgets::ArdourButton _name_label;
+	};
+
+	std::vector<boost::shared_ptr<InputMeter> > _input_meters;
 };
 
 #endif /* __gtk_ardour_recorder_ui_h__ */

@@ -836,6 +836,9 @@ ARDOUR_UI::~ARDOUR_UI ()
 
 	stop_video_server();
 
+	/* unsubscribe from AudioEngine::Stopped */
+	recorder->cleanup ();
+
 	if (getenv ("ARDOUR_RUNNING_UNDER_VALGRIND")) {
 		// don't bother at 'real' exit. the OS cleans up for us.
 		delete big_clock; big_clock = 0;
@@ -845,9 +848,9 @@ ARDOUR_UI::~ARDOUR_UI ()
 		delete time_info_box; time_info_box = 0;
 		delete meterbridge; meterbridge = 0;
 		delete luawindow; luawindow = 0;
+		delete recorder; recorder = 0;
 		delete editor; editor = 0;
 		delete mixer; mixer = 0;
-		delete recorder; recorder = 0;
 		delete rc_option_editor; rc_option_editor = 0; // failed to wrap object warning
 		delete nsm; nsm = 0;
 		delete gui_object_state; gui_object_state = 0;
