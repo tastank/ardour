@@ -34,6 +34,7 @@
 #include "jack_session.h"
 
 using namespace ARDOUR;
+using namespace Temporal;
 using std::string;
 
 JACKSession::JACKSession (Session* s)
@@ -128,7 +129,7 @@ JACKSession::timebase_callback (jack_transport_state_t /*state*/,
 	TempoMetric metric (tempo_map.metric_at (tf));
 
 	try {
-		bbt = tempo_map.bbt_at_sample (tf);
+		bbt = tempo_map.bbt_at (tf);
 
 		pos->bar = bbt.bars;
 		pos->beat = bbt.beats;
@@ -137,7 +138,7 @@ JACKSession::timebase_callback (jack_transport_state_t /*state*/,
 		// XXX still need to set bar_start_tick
 
 		pos->beats_per_bar = metric.meter().divisions_per_bar();
-		pos->beat_type = metric.meter().note_divisor();
+		pos->beat_type = metric.meter().note_value();
 		pos->ticks_per_beat = Temporal::ticks_per_beat;
 		pos->beats_per_minute = metric.tempo().note_types_per_minute();
 
