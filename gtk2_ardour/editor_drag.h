@@ -862,6 +862,8 @@ private:
 	bool     _drag_valid;
 };
 
+#warning NUTEMPO may or may not need this in the new world
+#if 0
 /** tempo curve twist drag */
 class TempoTwistDrag : public Drag
 {
@@ -891,7 +893,7 @@ private:
 	bool _drag_valid;
 	XMLNode* _before_state;
 };
-
+#endif
 
 /** tempo curve twist drag */
 class TempoEndDrag : public Drag
