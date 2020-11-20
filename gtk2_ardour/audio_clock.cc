@@ -979,7 +979,7 @@ AudioClock::finish_set (Temporal::timepos_t const & when, bool btn_en)
 void
 AudioClock::set_slave_info ()
 {
-	if (!_with_info) {
+	if (!_with_info || !_session) {
 		return;
 	}
 
