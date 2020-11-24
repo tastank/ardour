@@ -35,6 +35,8 @@ namespace ArdourWidgets {
 	class FastMeter;
 }
 
+class RecTimeAxis;
+
 class RecorderUI : public ArdourWidgets::Tabbable, public ARDOUR::SessionHandlePtr, public PBD::ScopedConnectionList
 {
 public:
@@ -55,6 +57,9 @@ private:
 	void start_updating ();
 	void stop_updating ();
 	void update_meters ();
+
+	void add_routes (ARDOUR::RouteList&);
+	void remove_route (RecTimeAxis*);
 
 	Gtkmm2ext::Bindings*       bindings;
 	Gtk::VBox                 _content;

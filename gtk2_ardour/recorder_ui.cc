@@ -37,6 +37,7 @@
 #include "actions.h"
 #include "ardour_ui.h"
 #include "gui_thread.h"
+#include "rec_time_axis.h"
 #include "recorder_ui.h"
 #include "timers.h"
 #include "ui_config.h"
@@ -136,10 +137,14 @@ RecorderUI::set_session (ARDOUR::Session* s)
 	_session->DirtyChanged.connect (_session_connections, invalidator (*this), boost::bind (&RecorderUI::update_title, this), gui_context ());
 	_session->StateSaved.connect (_session_connections, invalidator (*this), boost::bind (&RecorderUI::update_title, this), gui_context ());
 
+	_session->RouteAdded.connect (_session_connections, invalidator (*this), boost::bind (&RecorderUI::add_routes, this, _1), gui_context());
+	RecTimeAxis::CatchDeletion.connect (*this, invalidator (*this), boost::bind (&RecorderUI::remove_route, this, _1), gui_context());
+
 	_session->config.ParameterChanged.connect (_session_connections, invalidator (*this), boost::bind (&RecorderUI::parameter_changed, this, _1), gui_context ());
 	Config->ParameterChanged.connect (*this, invalidator (*this), boost::bind (&RecorderUI::parameter_changed, this, _1), gui_context ());
 
 	update_title ();
+	//initial_track_display ()
 	start_updating ();
 }
 
@@ -226,6 +231,7 @@ RecorderUI::update_meters ()
 	for (PortManager::PortDPM::const_iterator i = dpm.begin (); i != dpm.end (); ++i, ++m) {
 		(*m)->update (accurate_coefficient_to_dB (i->second.level), accurate_coefficient_to_dB (i->second.peak));
 	}
+	/* TODO: call ->fast_update() for each RecTimeAxis */
 }
 
 /* ****************************************************************************/
@@ -287,4 +293,15 @@ void
 RecorderUI::InputMeter::update (float l, float p)
 {
 	_meter->set (log_meter0dB (l), log_meter0dB (p));
+}
+
+
+void
+RecorderUI::add_routes (ARDOUR::RouteList&)
+{
+}
+
+void
+RecorderUI::remove_route (RecTimeAxis *)
+{
 }
