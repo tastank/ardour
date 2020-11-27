@@ -186,8 +186,10 @@ ArdourFeedback::observe_transport ()
 	                                   boost::bind<void> (TransportObserver (), this), event_loop ());
 	sess.RecordStateChanged.connect (_signal_connections, MISSING_INVALIDATOR,
 	                                 boost::bind<void> (RecordStateObserver (), this), event_loop ());
-	sess.tempo_map ().PropertyChanged.connect (_signal_connections, MISSING_INVALIDATOR,
-	                                 boost::bind<void> (TempoObserver (), this), event_loop ());
+
+#warning NUTEMPO this is not right. the actual map can change. static signal?
+	Temporal::TempoMap::use()->Changed.connect (_signal_connections, MISSING_INVALIDATOR,
+	                                            boost::bind<void> (TempoObserver (), this), event_loop ());
 }
 
 void
