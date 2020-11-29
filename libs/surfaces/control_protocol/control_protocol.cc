@@ -22,6 +22,9 @@
 #include "pbd/convert.h"
 #include "pbd/error.h"
 
+#include "temporal/superclock.h"
+#include "temporal/tempo.h"
+
 #include "ardour/control_protocol_manager.h"
 #include "ardour/gain_control.h"
 #include "ardour/session.h"
@@ -391,3 +394,11 @@ ControlProtocol::notify_stripable_selection_changed (StripableNotificationListPt
 		}
 	}
 }
+
+void
+ControlProtocol::event_loop_precall ()
+{
+	Temporal::set_thread_sample_rate (session->sample_rate());
+	Temporal::TempoMap::fetch ();
+}
+
